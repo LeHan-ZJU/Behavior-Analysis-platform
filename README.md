@@ -14,7 +14,7 @@ camshow
 │   │── do_conv_pytorch.py
 │   │── Models.py
 │   │── RatNetAttention_DOConv.py
-│   │── models.pth  // Pre-trained weights.
+│   │── models.pth  // Pre-trained weights. For non-profit use, please send email to hanle@zju.edu.cn for access.
 ├── Saved-test  // Default folder for saving results and videos
 ├── CamShow.py  // The main function. Each major module is briefly commented.
 ├── ObardCamDisp.py  // UI interface file.
