@@ -3,7 +3,7 @@ Experimental Scenario Rat Behavior Analysis Platform
 
 ## Introduction
 
-This is a platform for rat behavior data collection and analysis.
+This is a platform for rat behavior data collection and analysis. This platform is helpful to improve the efficiency of research related to animal behavioral experiments such as bBrain-Computer Interfaces (BCI).
 
 ## Directory
 
