@@ -14,7 +14,7 @@ camshow
 │   │── do_conv_pytorch.py
 │   │── Models.py
 │   │── RatNetAttention_DOConv.py
-│   │── models.pth  // Pre-trained weights. For non-profit use, please send email to hanle@zju.edu.cn for access.
+│   │── models.pth  // Pre-trained weights. For non-profit and profit use, please send email to hanle@zju.edu.cn for access.
 ├── main.py  // The main function. Each major module is briefly commented.
 ├── ObardCamDisp.py  // UI interface file.
 ├── RatNet1.py  // Pose estimation network model and post-processing.
