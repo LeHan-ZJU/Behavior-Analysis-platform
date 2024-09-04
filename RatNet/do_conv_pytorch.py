@@ -6,7 +6,6 @@ import numpy as np
 from torch.nn import init
 from itertools import repeat
 from torch.nn import functional as F
-# from torch._six import container_abcs
 import collections.abc as container_abcs
 from torch._jit_internal import Optional
 from torch.nn.parameter import Parameter
@@ -14,13 +13,7 @@ from torch.nn.modules.module import Module
 
 
 class DOConv2d(Module):
-    """
-       DOConv2d can be used as an alternative for torch.nn.Conv2d.
-       The interface is similar to that of Conv2d, with one exception:
-            1. D_mul: the depth multiplier for the over-parameterization.
-       Note that the groups parameter switchs between DO-Conv (groups=1),
-       DO-DConv (groups=in_channels), DO-GConv (otherwise).
-    """
+
     __constants__ = ['stride', 'padding', 'dilation', 'groups',
                      'padding_mode', 'output_padding', 'in_channels',
                      'out_channels', 'kernel_size', 'D_mul']
@@ -53,7 +46,6 @@ class DOConv2d(Module):
         self.padding_mode = padding_mode
         self._padding_repeated_twice = tuple(x for x in self.padding for _ in range(2))
 
-        #################################### Initailization of D & W ###################################
         M = self.kernel_size[0]
         N = self.kernel_size[1]
         self.D_mul = M * N if D_mul is None or M * N <= 1 else D_mul
@@ -67,12 +59,11 @@ class DOConv2d(Module):
 
             eye = torch.reshape(torch.eye(M * N, dtype=torch.float32), (1, M * N, M * N))
             D_diag = eye.repeat((in_channels, 1, self.D_mul // (M * N)))
-            if self.D_mul % (M * N) != 0:  # the cases when D_mul > M * N
+            if self.D_mul % (M * N) != 0: 
                 zeros = torch.zeros([in_channels, M * N, self.D_mul % (M * N)])
                 self.D_diag = Parameter(torch.cat([D_diag, zeros], dim=2), requires_grad=False)
-            else:  # the case when D_mul = M * N
+            else:  
                 self.D_diag = Parameter(D_diag, requires_grad=False)
-        ##################################################################################################
 
         if bias:
             self.bias = Parameter(torch.Tensor(out_channels))
@@ -115,22 +106,12 @@ class DOConv2d(Module):
         N = self.kernel_size[1]
         DoW_shape = (self.out_channels, self.in_channels // self.groups, M, N)
         if M * N > 1:
-            ######################### Compute DoW #################
-            # (input_channels, D_mul, M * N)
             D = self.D + self.D_diag
             W = torch.reshape(self.W, (self.out_channels // self.groups, self.in_channels, self.D_mul))
 
-            # einsum outputs (out_channels // groups, in_channels, M * N),
-            # which is reshaped to
-            # (out_channels, in_channels // groups, M, N)
             DoW = torch.reshape(torch.einsum('ims,ois->oim', D, W), DoW_shape)
-            #######################################################
         else:
-            # in this case D_mul == M * N
-            # reshape from
-            # (out_channels, in_channels // groups, D_mul)
-            # to
-            # (out_channels, in_channels // groups, M, N)
+
             DoW = torch.reshape(self.W, DoW_shape)
         return self._conv_forward(input, DoW)
 
