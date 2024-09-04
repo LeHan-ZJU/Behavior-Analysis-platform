@@ -16,7 +16,6 @@ import os
 import csv
 import torch
 import torchvision
-# from RatNet0 import DetectKeyPoints, predict_img, heatmap_to_image, heatmap_to_axis_v2, RatRelation
 from RatNet1 import PoseDetection, predict_img, initNet, noDetection, draw_relation
 
 
@@ -42,36 +41,25 @@ def CalculateForegrounds(Bg, img, kernel, pts, ChangeBgmFlag, AreaThreshold, Gra
     Bg_Guassian = cv2.blur(Bg0, (5, 5))
 
     if ChangeBgmFlag==0:
-        Foreground = cv2.subtract(img_Guassian, Bg_Guassian)   # 深色背景模式:背景减前景
+        Foreground = cv2.subtract(img_Guassian, Bg_Guassian)
     else:
-        Foreground = cv2.subtract(Bg_Guassian, img_Guassian)   # 浅色背景模式:前景减背景
+        Foreground = cv2.subtract(Bg_Guassian, img_Guassian)
 
-    # 形态学开运算去噪点
     Foreground = cv2.morphologyEx(Foreground, cv2.MORPH_OPEN, kernel)
-    # 二值化
     retval, Foreground = cv2.threshold(Foreground, GrayThreshold, 255, cv2.THRESH_BINARY)
 
-    #####得到前景mask后检测框、身长等
-    Foreground = CalculateLength(Foreground)   # 去掉尾巴部分
+    Foreground = CalculateLength(Foreground)
     contours2, hierarchy2 = cv2.findContours(Foreground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    #################################中值法##################################
     rect=0
 
     for c in contours2:
-        # 计算各轮廓的周长
         perimeter = cv2.arcLength(c, True)
         if perimeter > AreaThreshold:
-            # 画出最小矩形框
-            rect = cv2.minAreaRect(c)  # （最小外接矩形的中心（x，y），（宽度，高度），旋转角度）
-            # print('rect:', rect)
+            rect = cv2.minAreaRect(c) 
             box = np.int0(cv2.boxPoints(rect))
             if KeyPointsFlag == 0:
-                cv2.drawContours(img, [box], -1, (0, 255, 0), 2)   # 画出bounding box（绿色）
+                cv2.drawContours(img, [box], -1, (0, 255, 0), 2)   
             CenterPoint = np.int0(rect[0])
-            ##########################计算身长############################
-
-            ##########################计算身长############################
-            # # 计算重心
             mm = cv2.moments(c)
             m00 = mm['m00']
             m10 = mm['m10']
@@ -79,69 +67,38 @@ def CalculateForegrounds(Bg, img, kernel, pts, ChangeBgmFlag, AreaThreshold, Gra
             if m00:
                 cx = np.int(m10 / m00)
                 cy = np.int(m01 / m00)
-                cv2.circle(img, (cx, cy), 2, (255, 0, 0), 4)  # 画出重心（蓝色）
+                cv2.circle(img, (cx, cy), 2, (255, 0, 0), 4) 
             if KeyPointsFlag == 0:
-                cv2.drawContours(img, contours2, -1, (0, 0, 255), 1)  # 画出轮廓（红色）
-
-
-            ######################绘制轨迹#########################
-            # print('pts2:', len(pts))
-            # if len(pts) > 5:
-            #     for i in range(1, len(pts)):
-            #         if pts[i - 1] is None or pts[i] is None:
-            #             continue
-            #         thickness = int(np.sqrt(64 / float(i + 1)) * 2.5)
-            #         print(thickness)
-            #         cv2.line(img, pts[i - 1], pts[i], (255, 0, 0), thickness)
-                    # cv2.polylines(img, np.int32(pts), False,
-                    #               (255, 0, 0), 3)  # 以上一振角点为初始点，当前帧跟踪到的点为终点划线
-                    # print(2)
-            ######################绘制轨迹#########################
+                cv2.drawContours(img, contours2, -1, (0, 0, 255), 1)  
     return img, rect
 
 def JudgeDeriection(pts):
-    # print('pts:', pts)
-    # len = len(pts)
-    print(pts.shape)
     len = pts.shape
     a = pts[len[0]-5]
-    print('a:', a)
     b = pts[len[0]-2]
     c = pts[len[0]-1]
     # S(P1, P2, P3) = | y1 y2 y3 |= (x1 - x3) * (y2 - y3) - (y1 - y3) * (x2 - x3)
-    s = (a[0] - c[0])*(b[1]-c[1]) - (a[1] - c[1])*(b[0]-c[0])  # S>0, left，返回1; S<0, right，返回2，否则返回0
-    # if s > 0:
-    #     return 1  # 左转
-    # elif s < 0:
-    #     return 2  # 右转
-    # else:
-    #     return 0  # 直线
+    s = (a[0] - c[0])*(b[1]-c[1]) - (a[1] - c[1])*(b[0]-c[0])  
     return s
 
 def BackgroundModeling(frame, kernel, fgbg):
     fgmask = fgbg.apply(frame)
-    # 形态学开运算去噪点
     fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
-    # 寻找视频中的轮廓
     contours, hierarchy = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for c in contours:
-        # 计算各轮廓的周长
         perimeter = cv2.arcLength(c, True)
         if perimeter > 188:
-            # 找到一个直矩形（不会旋转）
             x, y, w, h = cv2.boundingRect(c)
-            # 画出这个矩形
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
     return frame
 
 def CalculateSpeed(cx1, cy1, cx2, cy2, t1, t2, DisScale):
-    # speed = np.linalg.norm(np.array([cx1, cy1]) - np.array([cx2, cy2]))  # np.abs(cx2-cx1)*np.abs(cx2-cx1)+np.abs(cy2-cy1)*np.abs(cy2-cy1)
     speed = np.sqrt((cx1 - cx2) ** 2 + (cy1 - cy2) ** 2)
-    # print('distance:', speed)
-    # print('time_delt:', np.abs(t2-t1))
+    
     speed = speed//np.abs(t2-t1)
-    speed = speed/DisScale   # 一厘米约等于2.44像素
+    speed = speed/DisScale  
     return speed
+
 
 def get_dis(p1, p2):
     return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
@@ -154,7 +111,6 @@ def get_speed(center_list, DisScale, frame_rate, window_len=10):
         for j in range(window_len):
             cur_dis += get_dis(center_list[i+j], center_list[i+j+1])
         speed_list.append((cur_dis * frame_rate) / (DisScale * 10))  # 10frame*3.4pix/s
-        # speed_list.append((cur_dis * 24) / 10)  # 单位是pix/s，尚未做像素-距离变换
     return speed_list
 
 def CropCircleArea(Image, mid_x, mid_y, radius):
@@ -174,7 +130,6 @@ def CropCircleArea2(Image, mid_x, mid_y, radius):
 
 
 def DrawcircleArea(Image, circle_start_pos, circle_end_pos, circle_start_x, circle_start_y, circle_end_x, circle_end_y):
-    # 根据鼠标点结果画圆形选区
     if circle_start_pos != None:
         cv2.circle(Image, (circle_start_x, circle_start_y), 2, (100, 160, 60), 1)
     if circle_end_pos != None:
@@ -190,26 +145,19 @@ def DrawcircleArea(Image, circle_start_pos, circle_end_pos, circle_start_x, circ
         return Image, 0, 0, 0
 
 def DrawRectangleArea(Image, rectangle_start_pos, rectangle_end_pos, rectangle_start_x, rectangle_start_y, rectangle_end_x, rectangle_end_y):
-    # 根据鼠标点结果画矩形选区
     if rectangle_start_pos != None:
         cv2.circle(Image, (rectangle_start_x, rectangle_start_y), 2, (255, 0, 155), 1)
     if rectangle_end_pos != None:
         cv2.circle(Image, (rectangle_end_x, rectangle_end_y), 2, (255, 0, 155), 1)
         cv2.rectangle(Image, (rectangle_start_x, rectangle_start_y),
                       (rectangle_end_x, rectangle_end_y), (100, 160, 60), 1)
-    #     img = Image - Image
-    #     img[rectangle_start_y - 5:rectangle_end_y + 8, rectangle_start_x - 5:rectangle_end_x + 8] = Image[
-    #                                                                                                 rectangle_start_y - 5:rectangle_end_y + 8,                                                                                                    rectangle_start_x - 5:rectangle_end_x + 8]
-    #     return img
-    # else:
-    #     return Image
     return Image
 
 
 class CamShow(QMainWindow,Ui_MainWindow):
     def __del__(self):
         try:
-            self.camera.release()  # 释放资源
+            self.camera.release() 
         except:
             return
     def __init__(self,parent=None):
@@ -266,22 +214,20 @@ class CamShow(QMainWindow,Ui_MainWindow):
         self.DetectFlag = 0
         self.KeyPointsFlag = 0
         self.CameraNum = 1
-        self.ChangeBgmFlag = 0         # 切换背景模式
+        self.ChangeBgmFlag = 0        
         self.AreaThreshold = 188
         self.GrayThreshold = 15
         self.RecordPath='./Saved-test/'
-        self.pts = []  # 存放中心点轨迹
+        self.pts = []  
         self.SpeedAll=[]
-        self.signalLamp = 0            # 用于显示信号灯
-        self.DisScale = 2.44           # 实际距离的一厘米等于2.44个像素
-        self.LogPath=self.RecordPath   # 记录文档路径
+        self.signalLamp = 0     
+        self.DisScale = 2.44    
+        self.LogPath=self.RecordPath  
         self.LogCSVPath = self.RecordPath
-        # self.LogContents=[]
         self.FilePathLE.setText(self.RecordPath)
         self.frame_num = 0
         self.Image_num = 0
         self.frame_rate = 30
-        #计算速度的参数
         self.speed = 0
         self.SpeedThreshold = 5
         self.cx1 = 0
@@ -290,77 +236,55 @@ class CamShow(QMainWindow,Ui_MainWindow):
         # self.time2
         self.CameraNOSpB.setValue(self.CameraNum)
         self.SetCameraNum()
-        # 交互参数
-        self.resetLabel=0  # 比例尺
+        self.resetLabel=0  
         self.start_pos = None
         self.end_pos = None
         self.start_x, self.start_y, self.end_x, self.end_y = 0, 0, 0, 0
         self.ratioLineLabel = 0
-        self.rectangle_start_pos = None  # 矩形选区
+        self.rectangle_start_pos = None  
         self.rectangle_end_pos = None
         self.rectangle_start_x, self.rectangle_start_y, self.rectangle_end_x, self.rectangle_end_y = 0, 0, 0, 0
         self.rectangleLabel = 0
-        self.circle_start_pos = None  # 圆形选区
+        self.circle_start_pos = None  
         self.circle_end_pos = None
         self.circle_start_x, self.circle_start_y, self.circle_end_x, self.circle_end_y = 0, 0, 0, 0
         self.circleLabel = 0
-        # self.mousePress = False
         self.Angle = 0
         self.keyp_frame_num = 0
         self.keyPoints = np.zeros([2, 8])
-        self.keyPoints_all = []  # np.zeros([int(num_frames), 2, 8])
+        self.keyPoints_all = []  
         self.relation = [[1, 5], [1, 8], [1, 7], [2, 5], [2, 7], [2, 8], [3, 7], [3, 6], [4, 6], [4, 7], [5, 8], [7, 8]]
 
 
     def mousePressEvent(self, event):
-        # 比例尺始末点获取
         if event.buttons() == QtCore.Qt.LeftButton and self.start_pos == None and self.resetLabel==2:
-            # print(1)
             self.start_pos = event.pos()
-            # self.mousePress = True
             self.start_x = int((self.start_pos.x() - 305) * 640 / 960)
             self.start_y = int((self.start_pos.y() - 60) * 480 / 720)
             self.resetLabel = 1
-            # print(self.start_x, self.start_y)
         elif event.buttons() == QtCore.Qt.LeftButton and self.start_pos != None and self.end_pos == None and self.resetLabel==1:
             self.end_pos = event.pos()
-            # self.mousePress = True
             self.end_x = int((self.end_pos.x() - 305) * 640 / 960)
             self.end_y = int((self.end_pos.y() - 60) * 480 / 720)
             self.resetLabel = 0
-            # print(self.end_x, self.end_y)
-        # 矩形区域对角两点获取
         elif event.buttons() == QtCore.Qt.LeftButton and self.rectangle_start_pos == None and self.rectangleLabel==1:
-            # print(2)
             self.rectangle_start_pos = event.pos()
-            # self.mousePress = True
             self.rectangle_start_x = int((self.rectangle_start_pos.x() - 305) * 640 / 960)
             self.rectangle_start_y = int((self.rectangle_start_pos.y() - 60) * 480 / 720)
-            # self.resetLabel = 1
-            # print(self.rectangle_start_x, self.rectangle_start_y)
         elif event.buttons() == QtCore.Qt.LeftButton and self.rectangle_start_pos != None and self.rectangle_end_pos == None and self.rectangleLabel==1:
             self.rectangle_end_pos = event.pos()
-            # self.mousePress = True
             self.rectangle_end_x = int((self.rectangle_end_pos.x() - 305) * 640 / 960)
             self.rectangle_end_y = int((self.rectangle_end_pos.y() - 60) * 480 / 720)
-            # self.resetLabel = 0
-            # print(self.rectangle_end_x, self.rectangle_end_y)
-        # 圆形区域直径两点获取
+          
         elif event.buttons() == QtCore.Qt.LeftButton and self.circle_start_pos == None and self.circleLabel==1:
-            # print(3)
             self.circle_start_pos = event.pos()
-            # self.mousePress = True
             self.circle_start_x = int((self.circle_start_pos.x() - 305) * 640 / 960)
             self.circle_start_y = int((self.circle_start_pos.y() - 60) * 480 / 720)
-            # self.resetLabel = 1
-            # print(self.circle_start_x, self.circle_start_y)
         elif event.buttons() == QtCore.Qt.LeftButton and self.circle_start_pos != None and self.circle_end_pos == None and self.circleLabel==1:
             self.circle_end_pos = event.pos()
-            # self.mousePress = True
             self.circle_end_x = int((self.circle_end_pos.x() - 305) * 640 / 960)
             self.circle_end_y = int((self.circle_end_pos.y() - 60) * 480 / 720)
-            # self.resetLabel = 0
-            # print(self.circle_end_x, self.circle_end_y)
+
 
     def PrepCameraParameters(self):
         self.ExpTimeSld.setValue(self.camera.get(15))
