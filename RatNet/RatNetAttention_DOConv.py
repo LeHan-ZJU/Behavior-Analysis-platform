@@ -4,7 +4,6 @@ from torchvision import models
 from RatNet.do_conv_pytorch import DOConv2d
 
 
-# 中间层特征提取
 class FeatureExtractor(nn.Module):
     def __init__(self, submodule, extracted_layers):
         super(FeatureExtractor, self).__init__()
@@ -104,7 +103,7 @@ class Net_ResnetAttention_DOConv(nn.Module):
         self.resnet = models.resnet50(pretrained=False)
         if train:
             self.resnet.load_state_dict(torch.load(self.model_path, map_location=self.device), strict=False)
-        self.SubResnet = FeatureExtractor(self.resnet, self.extract_list)  # 提取resnet层
+        self.SubResnet = FeatureExtractor(self.resnet, self.extract_list) 
 
     def forward(self, img):
         f = self.SubResnet(img)
