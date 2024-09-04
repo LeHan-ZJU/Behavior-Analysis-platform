@@ -1,4 +1,4 @@
-# Behavior-Analysis-platform
+# Behavior-Analysis-Platform
 Experimental Scenario Rat Behavior Analysis Platform
 
 ## Introduction
