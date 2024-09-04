@@ -530,47 +530,28 @@ class CamShow(QMainWindow,Ui_MainWindow):
                                                             self.GrayThreshold, self.signalLamp, self.KeyPointsFlag)
                     if rect != 0:
                         centerPoints = np.int0(rect[0])
-                        # print('center:', centerPoints)
-                ###########################################鼠标划分区域##########################################
 
                 if rect==0:
                     self.DispImg()
                     self.MsgTE.setPlainText('No Object Detected.')
                 else:
-                    #########################方向判断###########################
-                    # center=(rect[0][0], rect[0][1])
-                    if self.KeyPointsFlag == 0:   # 如果未检测关键点，则将背景建模的中心点写入中心点序列，否则中心点默认为关键点均值
+
+                    if self.KeyPointsFlag == 0:  
                         self.pts.append(centerPoints)
-                    # if len(self.pts) > 7:
-                    #     s = JudgeDeriection(np.array(self.pts))
-                    #     if s > 0:
-                    #         print('左转')
-                    #     elif s < 0:
-                    #         print('右转')
-                    #     else:
-                    #         print('直线')
-                    # print(len(self.pts))
-                    # cv2.imshow("rstp", Foreground)
-                    #########################方向判断###########################
+
                     self.Image = Foreground
-                    ########################视频上绘制时间##############################
                     TimeText = 'Time:' + datetime.datetime.now().strftime('%Y%m%d-%H:%M:%S.%f')
                     cv2.putText(self.Image, TimeText, (370, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1,
                                       cv2.LINE_AA)
-                    ########################视频上绘制时间##############################
 
-                    ########################视频上绘制信号灯和中心点坐标##############################
-                    if self.signalLamp == 2:  # 信号灯
-                        cv2.circle(self.Image, (20, 30), 10, (0, 0, 255), -1)  # 速度大于100时亮红灯
-                    elif self.signalLamp == 1:  # 信号灯
-                        cv2.circle(self.Image, (20, 30), 10, (0, 255, 0), -1)  # 速度在[50, 100)区间时亮绿灯
-                    # 添加中心点坐标 centerPoints[0], centerPoints[1]
+                    if self.signalLamp == 2: 
+                        cv2.circle(self.Image, (20, 30), 10, (0, 0, 255), -1)  
+                    elif self.signalLamp == 1: 
+                        cv2.circle(self.Image, (20, 30), 10, (0, 255, 0), -1)  
                     CenterText = 'Center: [' + str(centerPoints[0]) + ' ' + str(centerPoints[1]) + ']'
                     cv2.putText(self.Image, CenterText, (480, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1,
                                       cv2.LINE_AA)
-                    ########################视频上绘制信号灯和中心点坐标##############################
-
-                    ################################绘制关键点#####################################
+        
                     if self.KeyPointsFlag == 1:
                         for j in range(8):
                             cv2.circle(self.Image, (int(self.keyPoints[0, j]), int(self.keyPoints[1, j])), 2,
@@ -587,32 +568,12 @@ class CamShow(QMainWindow,Ui_MainWindow):
                         self.AngleLCD.display(self.Angle)
                     else:
                         self.AngleLCD.display(0)
-                    ################################绘制关键点#####################################
 
-
-                    ###显示身长
                     length = np.int0(np.max(rect[1]))
-                    length = length / self.DisScale  #一厘米约等于2.44个像素
+                    length = length / self.DisScale 
                     self.LengthLCD.display(length)
-                    # angle = np.int0(rect[2])
-                    # 实时速度计算
-                    # time2 = time.time()
-                    # cx2 = centerPoints[0]
-                    # cy2 = centerPoints[1]
-                    # if self.frame_num == 0:
-                    #     self.cx1 = cx2
-                    #     self.cy1 = cy2
-                    #     self.time1 = time2
-                    # # else:
-                    # if self.frame_num<=5:
-                    #     self.speed=0
-                    # elif self.frame_num % 5 == 0:  # 每5帧计算一次速度
-                    #     self.speed = CalculateSpeed(self.cx1, self.cy1, cx2, cy2, self.time1, time2, self.DisScale)
-                    #     self.time1 = time2
-                    #     self.cx1 = cx2
-                    #     self.cy1 = cy2
-                    #     self.SpeedAll.append(self.speed)
-                    self.SpeedAll = get_speed(self.pts, self.DisScale, self.frame_rate, window_len=10)   # 速度计算
+
+                    self.SpeedAll = get_speed(self.pts, self.DisScale, self.frame_rate, window_len=10)   
                     if len(self.pts) <= 10:
                         self.SpeedAll = [0]
                     self.speed = self.SpeedAll[-1]
@@ -623,36 +584,22 @@ class CamShow(QMainWindow,Ui_MainWindow):
 
                     self.DispImg()
 
-                    ### 根据最近几帧的速度变换判断是否亮指示灯（接近静止状态时亮红灯）
-                    # if len(self.SpeedAll) > 3:
-                    #     if max(self.SpeedAll[len(self.SpeedAll)-4:len(self.SpeedAll)-1]) <= self.SpeedThreshold:
-                    #         self.signalLamp = 1
-                    #     else:
-                    #         self.signalLamp = 0
-
-                    if self.speed >= 30 and self.speed < 100:  # 速度在[50, 100)区间时亮绿灯
+                    if self.speed >= 30 and self.speed < 100: 
                         self.signalLamp = 1
-                    elif self.speed >= 100:                    # 速度大于100时亮红灯
+                    elif self.speed >= 100:                 
                         self.signalLamp = 2
                     else:
                         self.signalLamp = 0
 
                     self.SpeedLCD.display(self.speed)
 
-                # if self.frame_num%10 ==0:
-
             self.frame_num = self.frame_num + 1
-            # 保存\显示
 
             if self.RecordFlag:
-                # self.video_writer_original.write(self.original_img)
                 self.video_writer.write(Foreground)
 
-                #########################################写记录文档csv############################################
                 with open(self.LogCSVPath, "a", newline='') as datacsv:
-                    # dialect为打开csv文件的方式，默认是excel，delimiter="\t"参数指写入的时候的分隔符
                     csvwriter = csv.writer(datacsv, dialect=("excel"))
-                    # csv文件插入一行数据，把下面列表中的每一项放入一个单元格（可以用循环插入多行）
                     if self.KeyPointsFlag == 1:
                         csvwriter.writerow([centerPoints[0], centerPoints[1], round(length, 2),
                                             round(self.speed, 2), self.Angle,
@@ -683,8 +630,6 @@ class CamShow(QMainWindow,Ui_MainWindow):
                                             datetime.datetime.now().strftime('%Y%m%d'),
                                             datetime.datetime.now().strftime('%H:%M:%S:%f')])
 
-                #########################################写记录文档csv############################################
-
             if self.frame_num % 10 == 9:
                 # frame_rate=10/(time.clock()-self.timelb)
                 self.frame_rate = 10 / (time.perf_counter() - self.timelb)
@@ -700,7 +645,6 @@ class CamShow(QMainWindow,Ui_MainWindow):
                 # self.Image = self.ColorAdjust(img)
                 self.Image = img
 
-                ###################################################比例尺######################################################
                 if self.start_pos != None and self.end_pos != None and self.ratioLineLabel==1:
                     if self.RatioLengthSpB.value() != 0:
                         self.DisScale = round(np.sqrt((self.start_x - self.end_x) ** 2 + (
@@ -709,20 +653,15 @@ class CamShow(QMainWindow,Ui_MainWindow):
                     if self.ScaleSpB.value != self.DisScale:
                         self.ScaleSpB.setValue(self.DisScale)
                     cv2.line(self.Image, (self.start_x, self.start_y), (self.end_x, self.end_y), (255, 0, 155), 1)
-                    # cv2.line(self.Image, (int(424 - 424) * 480 / 651), int((65 - 65) * 640 / 841), (int((1265 - 424) * 480 / 651), int((716 - 65) * 640 / 841)), (255, 0, 155), 1)
-                    # print(1)
                 if self.start_pos != None and self.ratioLineLabel == 1:
                     cv2.circle(self.Image, (self.start_x, self.start_y), 2, (255, 0, 155), 1)
                 if self.end_pos != None and self.ratioLineLabel == 1:
                     cv2.circle(self.Image, (self.end_x, self.end_y), 2, (255, 0, 155), 1)
-                ###################################################比例尺######################################################
 
-                # 矩形选区
                 if self.rectangleLabel==1:
                     self.Image=DrawRectangleArea(self.Image, self.rectangle_start_pos, self.rectangle_end_pos,
                                                  self.rectangle_start_x, self.rectangle_start_y, self.rectangle_end_x,
                                                  self.rectangle_end_y)
-                #  圆形选区
                 if self.circleLabel==1:
                     self.Image, radius, mid_x, mid_y = DrawcircleArea(self.Image, self.circle_start_pos,
                                                 self.circle_end_pos, self.circle_start_x, self.circle_start_y,
@@ -732,11 +671,8 @@ class CamShow(QMainWindow,Ui_MainWindow):
                 self.Image_num += 1
                 if self.RecordFlag:
                     self.video_writer.write(img)
-                    #########################################写记录文档csv############################################
                     with open(self.LogCSVPath, "a", newline='') as datacsv:
-                        # dialect为打开csv文件的方式，默认是excel，delimiter="\t"参数指写入的时候的分隔符
                         csvwriter = csv.writer(datacsv, dialect=("excel"))
-                        # csv文件插入一行数据，把下面列表中的每一项放入一个单元格（可以用循环插入多行）
 
                         csvwriter.writerow([0, 0, 0, 0, 0,
                                             0, 0, 0, 0, 0, 0, 0, 0,
@@ -745,16 +681,10 @@ class CamShow(QMainWindow,Ui_MainWindow):
                                             datetime.datetime.now().strftime('%Y%m%d'),
                                             datetime.datetime.now().strftime('%H:%M:%S:%f')])
 
-                    #########################################写记录文档csv############################################
-
-
                 if self.Image_num % 10 == 9:
-                    # frame_rate=10/(time.clock()-self.timelb)
                     self.frame_rate = 10 / (time.perf_counter() - self.timelb)
                     self.FmRateLCD.display(self.frame_rate)
-                    # self.timelb=time.clock()
                     self.timelb = time.perf_counter()
-                    # size=img.shape
                     self.ImgWidthLCD.display(self.camera.get(3))
                     self.ImgHeightLCD.display(self.camera.get(4))
             else:
@@ -781,11 +711,9 @@ class CamShow(QMainWindow,Ui_MainWindow):
         tag = self.RecordBt.text()
         if tag == '保存':
             try:
-                # image_name=self.RecordPath+'image'+time.strftime('%Y%m%d%H%M%S',time.localtime(time.time()))+'.jpg'
                 image_name = self.RecordPath + 'Background.jpg'
                 if not os.path.exists(self.RecordPath):
                     os.makedirs(self.RecordPath)
-                # print(image_name)
                 cv2.imwrite(image_name, self.Image)
                 self.MsgTE.clear()
                 self.MsgTE.setPlainText('Image saved.')
@@ -808,18 +736,13 @@ class CamShow(QMainWindow,Ui_MainWindow):
             self.StopBt.setEnabled(False)
             self.ExitBt.setEnabled(False)
 
-            # 初始化记录文档
             self.LogPath = self.RecordPath + 'Logs\\'
             if not os.path.exists(self.LogPath):
                 os.makedirs(self.LogPath)
-            # self.LogPath=self.LogPath + 'Logs_' + time.strftime('%Y%m%d%H%M%S',time.localtime(time.time())) + '.txt'
             self.LogCSVPath = self.LogPath + 'Logs_' + time.strftime('%Y%m%d%H%M%S',
                                                                      time.localtime(time.time())) + '.csv'
-            # 写记录文档表头
             with open(self.LogCSVPath, "a", newline='') as datacsv:
-                # dialect为打开csv文件的方式，默认是excel，delimiter="\t"参数指写入的时候的分隔符
                 csvwriter = csv.writer(datacsv, dialect=("excel"))
-                # csv文件插入一行数据，把下面列表中的每一项放入一个单元格（可以用循环插入多行）
                 csvwriter.writerow(["中心坐标x", "中心坐标y", "身长", "速度", "角度",
                                     'rRP_x', 'rRP_y',
                                     'lRP_x', 'lRP_y',
@@ -841,12 +764,10 @@ class CamShow(QMainWindow,Ui_MainWindow):
             self.ExitBt.setEnabled(True)
 
     def ExitApp(self):
-        # self.Timer.Stop()
         self.camera.release()
         self.MsgTE.setPlainText('Exiting the application..')
         QCoreApplication.quit()
 
-    #########################################
     def DispForeground(self):
         Foreground = CalculateForegrounds(self.Background, self.Image)
         qimg = qimage2ndarray.array2qimage(Foreground)
@@ -867,7 +788,6 @@ class CamShow(QMainWindow,Ui_MainWindow):
             self.RecordBt.setEnabled(True)
             self.DetectFlag = 0
             self.pts=[]
-            # 停止检测时，关键点也清零
             self.keyPoints = np.zeros([2, 8])
             self.keyPoints_all = []
             self.KeypointsBt.setText('姿态点检测')
