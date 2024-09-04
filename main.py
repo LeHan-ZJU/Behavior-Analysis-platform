@@ -447,17 +447,13 @@ class CamShow(QMainWindow,Ui_MainWindow):
         # self.timelb=time.clock()
         self.timelb=time.perf_counter()
 
-        # # 打开摄像头的时候初始化网络模型
         background_name = self.RecordPath + 'Background.jpg'
         self.Background = cv2.imread(background_name, cv2.IMREAD_COLOR)
-        # # 网络预测
         time_start = time.time()
         self.MsgTE.setPlainText('Loading the KeyPoints Net...')
         self.net, self.device = initNet()  # , center)
-        print(000)
         heatmap = predict_img(net=self.net, full_img=self.Background, device=self.device, resize_w=320, resize_h=256)
         time_end = time.time()
-        print('net-time:', time_end-time_start)
 
     def SetFilePath(self):
         dirname = QFileDialog.getExistingDirectory(self, "浏览", '.')
@@ -468,81 +464,51 @@ class CamShow(QMainWindow,Ui_MainWindow):
     def TimerOutFun(self):
         frame_num = 0
         if self.DetectFlag:
-            # background_name = self.RecordPath + 'Background.jpg'
-            # if frame_num==0:
-            #     self.MsgTE.setPlainText('Loading the Background...')
-            # else:
             self.MsgTE.setPlainText('Detecting...')
-            # self.Background = cv2.imread(background_name, cv2.IMREAD_COLOR)
-
 
             success, img = self.camera.read()
 
             if success:
                 self.Image = img  # self.ColorAdjust(img)
-                self.original_img = img   # 保存时同时保存原视频
+                self.original_img = img  
                 if self.RecordFlag:
                     self.video_writer_original.write(self.original_img)
 
-                ###########################################姿态点检测##########################################
                 if self.KeyPointsFlag == 1:
-                    # time_start = time.time()
-                    # if self.keyp_frame_num % 2 == 0:
-                    #     self.keyPoints, self.Angle, self.keyPoints_all = PoseDetection(self.Image, 640, 480,
-                    #                                                               self.device, self.net, 10,
-                    #                                                               self.keyPoints, self.keyPoints_all)
-                    #
-                    #     # print('deted')
-                    # else:
-                    #     self.keyPoints, self.keyPoints_all = noDetection(self.keyp_frame_num, 8, self.keyPoints,
-                    #                                                      self.keyPoints_all)
+
                     self.keyPoints, self.Angle, self.keyPoints_all = PoseDetection(self.Image, 640, 480,
                                                                                    self.device, self.net, 10,
                                                                                    self.keyPoints, self.keyPoints_all)
-                        # print('nodeted')
-                    # time_end = time.time()
                     if len(self.keyPoints_all) > 4:
                         self.keyPoints_all = self.keyPoints_all[-4:]
                     self.keyp_frame_num = self.keyp_frame_num + 1
-                    # print('net--time:', time_end - time_start)
 
-                    center = [np.mean(self.keyPoints[0, :]), np.mean(self.keyPoints[1, :])]   # 根据关键点计算中心点
+                    center = [np.mean(self.keyPoints[0, :]), np.mean(self.keyPoints[1, :])] 
                     self.pts.append(center)
-                ###########################################姿态点检测##########################################
 
+                self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)) 
+                self.fgbg = cv2.createBackgroundSubtractorMOG2() 
 
-                # 背景建模
-                self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))  # 形态学操作需要使用
-                self.fgbg = cv2.createBackgroundSubtractorMOG2()  # 创建混合高斯模型用于背景建模
-                ###########################################鼠标划分区域##########################################
-                #  圆形选区
                 if self.circleLabel==1:
                     self.Image, radius, mid_x, mid_y = DrawcircleArea(self.Image, self.circle_start_pos,
                                                 self.circle_end_pos, self.circle_start_x, self.circle_start_y,
                                                 self.circle_end_x, self.circle_end_y)
-                    # print('r:', radius)
 
-                # 矩形选区
                 if self.rectangleLabel==1:
                     self.Image = DrawRectangleArea(self.Image, self.rectangle_start_pos, self.rectangle_end_pos,
                                                  self.rectangle_start_x, self.rectangle_start_y, self.rectangle_end_x,
                                                  self.rectangle_end_y)
 
                 if self.circleLabel==1 and self.circle_end_pos != None:
-                        # print('x', mid_x)
                         Background_circle = CropCircleArea2(self.Background, mid_x, mid_y, radius)
-                        # print('y', mid_y)
                         Foreground, rect = CalculateForegrounds(Background_circle, self.Image, self.kernel, self.pts,
                                                                 self.ChangeBgmFlag, self.AreaThreshold,
                                                                 self.GrayThreshold, self.signalLamp, self.KeyPointsFlag)
                         if rect != 0:
                             centerPoints = np.int0(rect[0])
                 elif self.rectangleLabel==1 and self.rectangle_end_pos != None:
-                    # img = self.Image - self.Image
-                    # rect=[]
                     img0 = self.Image[
                            self.rectangle_start_y:self.rectangle_end_y, self.rectangle_start_x:self.rectangle_end_x]
-                    # bg=self.Background-self.Background
                     bg = self.Background[self.rectangle_start_y:self.rectangle_end_y,
                                                                    self.rectangle_start_x:self.rectangle_end_x]
                     foreground, rect = CalculateForegrounds(bg, img0, self.kernel, self.pts,
